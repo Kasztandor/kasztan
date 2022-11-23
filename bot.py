@@ -22,16 +22,16 @@ class abot(discord.Client):
 bot = abot()
 tree = discord.app_commands.CommandTree(bot)
 
-async def initMoney(interaction):
+async def initMoney(id):
     mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')
     cursor = mydb.cursor()
-    cursor.execute((f"SELECT * FROM `users` WHERE `user_id` = {interaction.user.id}"))
+    cursor.execute((f"SELECT * FROM `users` WHERE `user_id` = {id}"))
     for x in cursor:
         mydb.close()
         return x[1]
     cursor.close()
     cursor = mydb.cursor()
-    cursor.execute((f"INSERT INTO `users` (`user_id`, `money`) VALUES ({interaction.user.id}, 1000)"))
+    cursor.execute((f"INSERT INTO `users` (`user_id`, `money`) VALUES ({id}, 1000)"))
     mydb.commit()
     cursor.close()
     mydb.close()
@@ -47,7 +47,11 @@ async def self(interaction: discord.Interaction):
 
 @tree.command(name="money", description="Sprawdź stan konta", guild=guild)
 async def self(interaction: discord.Interaction):
-    await interaction.response.send_message(await initMoney(interaction))
+    await interaction.response.send_message(await initMoney(interaction.user.id))
+
+@tree.command(name="top", description="Zobacz kto jest najbogatszy", guild=guild)
+async def self(interaction: discord.Interaction):
+    await interaction.response.send_message("<@386237687008591895>", allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False, replied_user=False))
 
 @bot.event
 async def on_message(message):
