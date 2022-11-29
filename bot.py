@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
+import env
 import discord
 from discord.ext import commands
 import mysql.connector as sql
 import os
 
-# to ratcraft
-TOKEN = "NzIwMzc4ODQyMjY2NzMwNTI3.GElqMI.Fb3a4NKdM2tM9ohgrh5gIHK-sUVmYk1VjIfepA"
-guild = discord.Object(id=670330167339778048)
+guild = discord.Object(id=GUILD_ID)
 
 class abot(discord.Client):
     def __init__(self):
@@ -51,7 +50,17 @@ async def self(interaction: discord.Interaction):
 
 @tree.command(name="top", description="Zobacz kto jest najbogatszy", guild=guild)
 async def self(interaction: discord.Interaction):
-    await interaction.response.send_message("<@386237687008591895>", allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False, replied_user=False))
+    mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')
+    mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')
+    cursor = mydb.cursor()
+    cursor.execute((f"SELECT * FROM `users` ORDER BY `money` DESC"))
+    string = ""
+    embed = discord.Embed(color=0x00ff00)
+    for x in cursor:
+        string += f"<@{x[0]}>: {x[1]:,}\n"
+    mydb.close()
+    embed.add_field(name="Najbogatsi ludzie:", value=string, inline=False)
+    await interaction.response.send_message(embed=embed)
 
 @bot.event
 async def on_message(message):
