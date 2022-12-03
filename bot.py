@@ -5,7 +5,7 @@ from discord.ext import commands
 import mysql.connector as sql
 import os
 
-guild = discord.Object(id=GUILD_ID)
+guild = discord.Object(id=env.GUILD_ID)
 
 class abot(discord.Client):
     def __init__(self):
@@ -71,4 +71,4 @@ async def on_message(message):
     if bot.user in message.mentions:
         await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
 
-bot.run(TOKEN)
+bot.run(env.TOKEN)
