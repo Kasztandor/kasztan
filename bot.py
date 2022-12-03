@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import env
 import discord
+import asyncio
 from discord.ext import commands
 import mysql.connector as sql
 import os
@@ -64,11 +65,15 @@ async def self(interaction: discord.Interaction):
 
 @bot.event
 async def on_message(message):
+    msgLowercase = message.content.lower()
+    msgLowercaseNoPolish = msgLowercase.replace("ą","a").replace("ć","c").replace("ę","e").replace("ł","l").replace("ń","n").replace("ó","o").replace("ś","s").replace("ż","z").replace("ź","z")
     guild = message.guild
     msg = message.content
     sender = message.author
-
-    if bot.user in message.mentions:
+    if message.channel.id == env.MEMES_CHANNES:
+        await message.add_reaction("\U0001F44D")
+        await message.add_reaction("\U0001F44E")
+    if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
         await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
 
 bot.run(env.TOKEN)
