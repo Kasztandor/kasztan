@@ -2,11 +2,14 @@
 import env
 import discord
 import asyncio
-from discord.ext import commands
 import mysql.connector as sql
 import os
+import pytube
+from discord.ext import commands
+from discord import FFmpegPCMAudio
 
 guild = discord.Object(id=env.GUILD_ID)
+voice = None
 
 class abot(discord.Client):
     def __init__(self):
@@ -37,6 +40,11 @@ async def initMoney(id):
     mydb.close()
     return 1000
 
+@tree.command(name="sync", description="Synchronizacja drzewa", guild=guild)
+async def self(interaction: discord.Interaction):
+    await tree.sync()
+    await interaction.response.send_message("Zsynchronizowano drzewo!")
+
 @tree.command(name="ping", description="Bot odpowie ci pong", guild=guild)
 async def self(interaction: discord.Interaction):
     await interaction.response.send_message("Pong!")
@@ -51,7 +59,6 @@ async def self(interaction: discord.Interaction):
 
 @tree.command(name="top", description="Zobacz kto jest najbogatszy", guild=guild)
 async def self(interaction: discord.Interaction):
-    mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')
     mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')
     cursor = mydb.cursor()
     cursor.execute((f"SELECT * FROM `users` ORDER BY `money` DESC"))
@@ -75,5 +82,29 @@ async def on_message(message):
         await message.add_reaction("\U0001F44E")
     if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
         await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
+
+@tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
+async def self(interaction: discord.Interaction, argument:str):
+    """ resp = ""
+    for i, j in enumerate(pytube.Search(argument).results):
+        resp += f"{i+1}. {j.title}\n"
+        if i == 4:
+            break
+    await interaction.response.send_message(resp) """
+    channel = interaction.user.voice.channel
+    if channel is None:
+        await interaction.response.send_message("Musisz być na kanale głosowym!")
+    else:
+        srch = pytube.Search(argument)
+        if len(srch.results) == 0:
+            await interaction.response.send_message("Nie znaleziono takiego utworu!")
+        else:
+            await interaction.response.send_message("Odtwarzam wybrany utwór!")
+            yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
+            video = yt.streams.filter(only_audio=True).first()
+            video.download(filename="song.mp3",output_path="yt")
+            voice = await channel.connect()
+            source = FFmpegPCMAudio("yt/song.mp3")
+            voice.play(source)
 
 bot.run(env.TOKEN)
