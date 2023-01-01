@@ -91,7 +91,7 @@ async def self(interaction: discord.Interaction, argument:str):
         if i == 4:
             break
     await interaction.response.send_message(resp) """
-    channel = interaction.user.voice.channel
+    channel = interaction.user.voice
     if channel is None:
         await interaction.response.send_message("Musisz być na kanale głosowym!")
     else:
@@ -103,7 +103,7 @@ async def self(interaction: discord.Interaction, argument:str):
             yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
             video = yt.streams.filter(only_audio=True).first()
             video.download(filename="song.mp3",output_path="yt")
-            voice = await channel.connect()
+            voice = await channel.channel.connect()
             source = FFmpegPCMAudio("yt/song.mp3")
             voice.play(source)
 
