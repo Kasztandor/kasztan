@@ -77,7 +77,7 @@ async def on_message(message):
     guild = message.guild
     msg = message.content
     sender = message.author
-    if message.channel.id == env.MEMES_CHANNES:
+    if message.channel.id == env.MEMES_CHANEL:
         await message.add_reaction("\U0001F44D")
         await message.add_reaction("\U0001F44E")
     if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
