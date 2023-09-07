@@ -1,3 +1,4 @@
 discord.py
 mysql-connector
 pytube
+PyNaCl

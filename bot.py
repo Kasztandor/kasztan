@@ -99,13 +99,28 @@ async def self(interaction: discord.Interaction, argument:str):
         if len(srch.results) == 0:
             await interaction.response.send_message("Nie znaleziono takiego utworu!")
         else:
-            await interaction.response.send_message("Wyszukano: **"+argument+"**.\nOdtwarzam **"+srch.results[0].title+"**!")
-            yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
-            video = yt.streams.filter(only_audio=True).first()
-            video.download(filename="song.mp3",output_path="yt")
-            voice = await channel.channel.connect()
-            source = FFmpegPCMAudio("yt/song.mp3")
-            voice.play(source)
+            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
+            try:
+                yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
+                video = yt.streams.filter(only_audio=True).first()
+                video.download(filename=srch.results[0].video_id+".mp3",output_path="yt")
+                if (len(bot.voice_clients) == 0):
+                    await channel.channel.connect()
+                source = FFmpegPCMAudio("yt/"+srch.results[0].video_id+".mp3")
+                bot.voice_clients[0].play(source)
+                await interaction.edit_original_response(content="Wyszukano: **"+argument+"**.\nOdtwarzam: **"+srch.results[0].title+"**!")
+            except:
+                await interaction.edit_original_response(content="Głupi youtube nie pozwala mi pobrać tego utworu (pewnie jakieś zaloguj się przed obejrzeniem)... JEBANANY!")
+
+@tree.command(name="pause", description="Pauzuje i odpauzowuje odtwarzanie muzyki", guild=guild)
+async def self(interaction: discord.Interaction):
+    if (len(bot.voice_clients)):
+        if (bot.voice_clients[0].is_paused()):
+            bot.voice_clients[0].resume()
+            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
+        else:
+            bot.voice_clients[0].pause()
+            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
 
 @tree.command(name="leave", description="Spraw, aby bot uciekł z kanału głosowego", guild=guild)
 async def self(interaction: discord.Interaction):
