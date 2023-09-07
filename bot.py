@@ -82,8 +82,7 @@ async def on_message(message):
             await message.add_reaction("\U0001F44D")
             await message.add_reaction("\U0001F44E")
     if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
-        await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")elif message.channel.id == env.memes and message.author.id != bot.user.id:
-        message.channel.send("test"+str(message.attachments.count))
+        await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
 
 @tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, argument:str):
