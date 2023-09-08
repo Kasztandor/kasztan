@@ -179,13 +179,16 @@ async def self(interaction: discord.Interaction, page:int=1):
 @tree.command(name="skip", description="Pomija aktualnie odtwarzany utwór", guild=guild)
 async def self(interaction: discord.Interaction, count:int=1):
     global queue
+    counter = 1
     while (count > 1):
         count -= 1
+        counter += 1
         if (not len(queue)):
             break
         queue.pop(0)
     bot.voice_clients[0].stop()
     await afterPlayAsync()
+    await interaction.response.send_message("Pominięto "+str(counter)+" utworów.")
 
 @tree.command(name="stop", description="Zatrzymuje odtwarzacz", guild=guild)
 async def self(interaction: discord.Interaction):
@@ -195,6 +198,7 @@ async def self(interaction: discord.Interaction):
     os.mkdir("yt")
     if (len(bot.voice_clients)):
         bot.voice_clients[0].disconnect()
+    await interaction.response.send_message("Zatrzymano odtwarzacz.")
 '''
 @tree.command(name="leave", description="Spraw, aby bot uciekł z kanału głosowego", guild=guild)
 async def self(interaction: discord.Interaction):
