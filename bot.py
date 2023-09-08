@@ -4,12 +4,15 @@ import discord
 import asyncio
 import mysql.connector as sql
 import os
+import shutil
 import pytube
+import math
 from discord.ext import commands
 from discord import FFmpegPCMAudio
 
 guild = discord.Object(id=env.GUILD_ID)
-voice = None
+queue = []
+nowPlaying = ""
 
 class abot(discord.Client):
     def __init__(self):
@@ -39,11 +42,6 @@ async def initMoney(id):
     cursor.close()
     mydb.close()
     return 1000
-
-@tree.command(name="sync", description="Synchronizacja drzewa", guild=guild)
-async def self(interaction: discord.Interaction):
-    await tree.sync()
-    await interaction.response.send_message("Zsynchronizowano drzewo!")
 
 @tree.command(name="ping", description="Bot odpowie ci pong", guild=guild)
 async def self(interaction: discord.Interaction):
@@ -77,6 +75,11 @@ async def on_message(message):
     guild = message.guild
     msg = message.content
     sender = message.author
+    if (msg == "!sync" and message.author.id == 386237687008591895):
+        await tree.sync()
+        await message.channel.send("Zsynchronizowano drzewo!")
+    if (msg == "!queue" and message.author.id == 386237687008591895):
+        await message.channel.send(queue)
     if message.channel.id == env.MEMES_CHANEL:
         if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
             await message.add_reaction("\U0001F44D")
@@ -84,45 +87,115 @@ async def on_message(message):
     if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
         await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
 
+
+async def afterPlayAsync():
+    global queue
+    global nowPlaying
+    if (len(queue)):
+        print("Następny song")
+        if ((nowPlaying not in queue) and os.path.isfile("yt/"+nowPlaying+".mp3")):
+            os.remove("yt/"+nowPlaying)
+        playSong(queue.pop(0))
+    else:
+        print("Uciekam")
+        nowPlaying = ""
+        queue = []
+        if (len(bot.voice_clients)):
+            await bot.voice_clients[0].disconnect()
+
+def afterPlay(err):
+    asyncio.run_coroutine_threadsafe(afterPlayAsync(), bot.loop)
+
+def playSong(vid_id):
+    global nowPlaying
+    print("playSong()")
+    nowPlaying = vid_id
+    source = FFmpegPCMAudio("yt/"+vid_id+".mp3")
+    bot.voice_clients[0].play(source, after=afterPlay)
+
 @tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
-async def self(interaction: discord.Interaction, argument:str):
-    """ resp = ""
-    for i, j in enumerate(pytube.Search(argument).results):
-        resp += f"{i+1}. {j.title}\n"
-        if i == 4:
-            break
-    await interaction.response.send_message(resp) """
+async def self(interaction: discord.Interaction, fraza:str):
+    global queue
     channel = interaction.user.voice
     if channel is None:
         await interaction.response.send_message("Musisz być na kanale głosowym!")
     else:
-        srch = pytube.Search(argument)
+        srch = pytube.Search(fraza)
         if len(srch.results) == 0:
             await interaction.response.send_message("Nie znaleziono takiego utworu!")
         else:
             await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
             try:
-                yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
-                video = yt.streams.filter(only_audio=True).first()
-                video.download(filename=srch.results[0].video_id+".mp3",output_path="yt")
+                if (not os.path.isfile("yt/"+srch.results[0].video_id+".mp3")):
+                    yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
+                    video = yt.streams.filter(only_audio=True).first()
+                    video.download(filename=srch.results[0].video_id+".mp3",output_path="yt")
                 if (len(bot.voice_clients) == 0):
                     await channel.channel.connect()
-                source = FFmpegPCMAudio("yt/"+srch.results[0].video_id+".mp3")
-                bot.voice_clients[0].play(source)
-                await interaction.edit_original_response(content="Wyszukano: **"+argument+"**.\nOdtwarzam: **"+srch.results[0].title+"**!")
+                    playSong(srch.results[0].video_id)
+                elif (bot.voice_clients[0].is_playing()):
+                    queue.append(srch.results[0].video_id)
+                else:
+                    playSong(srch.results[0].video_id)
+                await interaction.edit_original_response(content="Wyszukano: **"+fraza+"**.\nDodano do kolejki: **"+srch.results[0].title+"**!")
             except:
-                await interaction.edit_original_response(content="Głupi youtube nie pozwala mi pobrać tego utworu (pewnie jakieś zaloguj się przed obejrzeniem)... JEBANANY!")
+                await interaction.edit_original_response(content="Głupi youtube nie pozwala mi pobrać tego utworu.")
 
-@tree.command(name="pause", description="Pauzuje i odpauzowuje odtwarzanie muzyki", guild=guild)
+@tree.command(name="pause", description="Pauzuje i wznawia odtwarzanie muzyki", guild=guild)
 async def self(interaction: discord.Interaction):
-    if (len(bot.voice_clients)):
+    if (len(bot.voice_clients) and bot.voice_clients[0].is_playing()):
         if (bot.voice_clients[0].is_paused()):
             bot.voice_clients[0].resume()
-            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
+            await interaction.response.send_message("Wznowiono odtwarzanie muzyki.")
         else:
             bot.voice_clients[0].pause()
-            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
+            await interaction.response.send_message("Spauzowano odtwarzanie muzyki.")
+    else:
+        await interaction.response.send_message("Bot nic nie gra przystojniaczku. Nie jestem w stanie zarzucić pauzy JOŁ.")
 
+@tree.command(name="queue", description="Sprawdź kolejkę odtwarzania", guild=guild)
+async def self(interaction: discord.Interaction, page:int=1):
+    global queue
+    if (len(queue) == 0):
+        await interaction.response.send_message("Aktualnie nic nie czeka na odtworzenie.")
+    else:
+        prefix = ""
+        if (page < 1):
+            prefix = "Podana strona nie istnieje. Wyświetlam pierwszą dostępną stronę.\n\n"
+            page = 1
+        elif (page > math.ceil(len(queue)/10)):
+            prefix = "Podana strona nie istnieje. Wyświetlam ostatnią dostępną stronę.\n\n"
+            page = math.ceil(len(queue)/10)
+        pg = page-1
+        middle = ""
+        for i in range(10):
+            if (len(queue) == pg*10+i):
+                break
+            srch = pytube.Search(queue[pg*10+i])
+            middle += str(pg*10+i+1)+". **"+srch.results[0].title+"**\n"
+        sufix = "\nWyświetlono stronę: "+str(page)+"/"+str(math.ceil(len(queue)/10))
+        await interaction.response.send_message(prefix+middle+sufix)
+
+@tree.command(name="skip", description="Pomija aktualnie odtwarzany utwór", guild=guild)
+async def self(interaction: discord.Interaction, count:int=1):
+    global queue
+    while (count > 1):
+        count -= 1
+        if (not len(queue)):
+            break
+        queue.pop(0)
+    bot.voice_clients[0].stop()
+    await afterPlayAsync()
+
+@tree.command(name="stop", description="Zatrzymuje odtwarzacz", guild=guild)
+async def self(interaction: discord.Interaction):
+    global queue
+    queue = []
+    shutil.rmtree("yt")
+    os.mkdir("yt")
+    if (len(bot.voice_clients)):
+        bot.voice_clients[0].disconnect()
+'''
 @tree.command(name="leave", description="Spraw, aby bot uciekł z kanału głosowego", guild=guild)
 async def self(interaction: discord.Interaction):
     channel = interaction.user.voice
@@ -131,5 +204,6 @@ async def self(interaction: discord.Interaction):
     else:
         await bot.voice_clients[0].disconnect()
         await interaction.response.send_message("Opuściłem kanał głosowy!")
+'''
 
 bot.run(env.TOKEN)
