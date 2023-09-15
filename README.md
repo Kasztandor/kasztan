@@ -6,8 +6,8 @@ When you would like to make bot works on your server change this values
 #Token of your bot
 TOKEN = "token"
 #IDs of fun channels
-COUNTING_CHANEL = 0
-MEMES_CHANEL = 0
+COUNTING_CHANNEL = 0
+MEMES_CHANNEL = 0
 #ID of discord server
 GUILD_ID = 0
 ```

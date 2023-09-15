@@ -80,7 +80,7 @@ async def on_message(message):
         await message.channel.send("Zsynchronizowano drzewo!")
     if (msg == "!queue" and message.author.id == 386237687008591895):
         await message.channel.send(queue)
-    if message.channel.id == env.MEMES_CHANEL:
+    if message.channel.id == env.MEMES_CHANNEL:
         if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
             await message.add_reaction("\U0001F44D")
             await message.add_reaction("\U0001F44E")
