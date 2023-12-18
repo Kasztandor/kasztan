@@ -9,6 +9,7 @@ import pytube
 import math
 from discord.ext import commands
 from discord import FFmpegPCMAudio
+from mcstatus import JavaServer
 
 guild = discord.Object(id=env.GUILD_ID)
 queue = []
@@ -23,10 +24,28 @@ class abot(discord.Client):
         if not self.sycned:
             await tree.sync(guild=guild)
             self.synced = True
+        mcServer = asyncio.create_task(minecraftServer())
         print("Bot is online")
 
 bot = abot()
 tree = discord.app_commands.CommandTree(bot)
+
+async def minecraftServer():
+    while True:
+        channel = bot.get_channel(env.MINECRAFT_STATUS_CHANNEL)
+        try:
+            server = JavaServer("kasztandor.pl", 25565)
+            messageContent = "**Status serwera:** *online*\n**Ilość graczy:** *"+str(server.status().players.online)+"*"
+            if len(server.query().players.names):
+                messageContent += "**Gracze online:** *"+", ".join(server.query().players.names)+"*"
+        except:
+            messageContent = "**Status serwera:** *offline*"
+        messages = [message async for message in channel.history(limit=1)]
+        if len(messages) == 0 or messages[0].author.id != bot.user.id:
+            await channel.send(messageContent)
+        else:
+            await messages[0].edit(content=messageContent)
+        await asyncio.sleep(30)
 
 async def initMoney(id):
     mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')

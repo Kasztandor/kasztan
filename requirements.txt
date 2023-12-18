@@ -2,3 +2,4 @@ discord.py
 mysql-connector
 pytube
 PyNaCl
+mcstatus
