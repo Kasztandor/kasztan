@@ -37,7 +37,7 @@ async def minecraftServer():
             server = JavaServer("kasztandor.pl", 25565)
             messageContent = "**Status serwera:** *online*\n**Ilość graczy:** *"+str(server.status().players.online)+"*"
             if len(server.query().players.names):
-                messageContent += "**Gracze online:** *"+", ".join(server.query().players.names)+"*"
+                messageContent += "\n**Gracze online:** *"+", ".join(server.query().players.names)+"*"
         except:
             messageContent = "**Status serwera:** *offline*"
         messages = [message async for message in channel.history(limit=1)]
