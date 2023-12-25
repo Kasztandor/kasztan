@@ -36,9 +36,11 @@ async def minecraftServer():
         try:
             server = JavaServer("kasztandor.pl", 25565)
             messageContent = "**Status serwera:** *online*\n**Ilość graczy:** *"+str(server.status().players.online)+"*"
+            channel.edit(name="『💎』info〘"+str(server.status().players.online)+"〙")
             if len(server.query().players.names):
                 messageContent += "\n**Gracze online:** *"+", ".join(server.query().players.names)+"*"
         except:
+            channel.edit(name="『💎』info")
             messageContent = "**Status serwera:** *offline*"
         messages = [message async for message in channel.history(limit=1)]
         if len(messages) == 0 or messages[0].author.id != bot.user.id:
