@@ -216,18 +216,33 @@ async def on_message(message):
     if message.author == bot.user:
         return
     if message.guild is None:
-        #check if message is youtrube link
-        if "https://www.youtube.com/watch?v=" in message.content:
-            #download video
-            yt = pytube.YouTube(message.content)
-            #download
-            video = yt.streams.filter().first()
-            #user id folder
-            video.download(filename=yt.video_id+".mp4",output_path="yt/"+str(message.author.id))
-            #send video as attachment
-            await message.channel.send(file=discord.File("yt/"+str(message.author.id)+"/"+yt.video_id+".mp4"))
-            #remove video
-            os.remove("yt/"+str(message.author.id)+"/"+yt.video_id+".mp4")
+        msg = message.content.lower()
+        if msg.startswith("mp4: ") or msg.startswith("mp3: "):
+            if msg.startswith("mp4: "):
+                downType = "mp4"
+            else:
+                downType = "mp3"
+            afterTrim = message.content[5:]
+            try:
+                yt = pytube.YouTube(afterTrim)
+                returncontent = ""
+            except:
+                srch = pytube.Search(afterTrim)
+                if len(srch.results) == 0:
+                    await message.channel.send("Nie znaleziono takiego utworu!")
+                    return
+                yt = srch.results[0]
+                returncontent = "<https://youtu.be/"+srch.results[0].video_id+">"
+            if downType == "mp4":
+                video = yt.streams.filter().first()
+            else:
+                video = yt.streams.filter(only_audio=True).first()
+            video.download(filename=yt.video_id+"."+downType,output_path="yt/"+str(message.author.id))
+            # without embed 
+            await message.channel.send(returncontent, file=discord.File("yt/"+str(message.author.id)+"/"+yt.video_id+"."+downType), reference=message)
+            os.remove("yt/"+str(message.author.id)+"/"+yt.video_id+"."+downType)
+        else:
+            await message.channel.send("Funkcje bota poprzez DM zawierają:```► mp3: [link/fraza] ◄ pobiera i wysyła plik mp3 z youtube\n► mp4: [link/fraza] ◄ pobiera i wysyła plik mp4 z youtube```\nNa przykład:```mp3: https://www.youtube.com/watch?v=dQw4w9WgXcQ```\nWszystkie inne komendy działają tylko na serwerze!")
         return
     msgLowercase = message.content.lower()
     msgLowercaseNoPolish = msgLowercase.replace("ą","a").replace("ć","c").replace("ę","e").replace("ł","l").replace("ń","n").replace("ó","o").replace("ś","s").replace("ż","z").replace("ź","z")
