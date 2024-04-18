@@ -89,26 +89,6 @@ async def self(interaction: discord.Interaction):
     embed.add_field(name="Najbogatsi ludzie:", value=string, inline=False)
     await interaction.response.send_message(embed=embed)
 
-@bot.event
-async def on_message(message):
-    msgLowercase = message.content.lower()
-    msgLowercaseNoPolish = msgLowercase.replace("ą","a").replace("ć","c").replace("ę","e").replace("ł","l").replace("ń","n").replace("ó","o").replace("ś","s").replace("ż","z").replace("ź","z")
-    guild = message.guild
-    msg = message.content
-    sender = message.author
-    if (msg == "!sync" and message.author.id == 386237687008591895):
-        await tree.sync()
-        await message.channel.send("Zsynchronizowano drzewo!")
-    if (msg == "!queue" and message.author.id == 386237687008591895):
-        await message.channel.send(queue)
-    if message.channel.id == env.MEMES_CHANNEL:
-        if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
-            await message.add_reaction("\U0001F44D")
-            await message.add_reaction("\U0001F44E")
-    if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
-        await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
-
-
 async def afterPlayAsync():
     global queue
     global nowPlaying
@@ -230,5 +210,40 @@ async def self(interaction: discord.Interaction):
         await bot.voice_clients[0].disconnect()
         await interaction.response.send_message("Opuściłem kanał głosowy!")
 '''
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    if message.guild is None:
+        #check if message is youtrube link
+        if "https://www.youtube.com/watch?v=" in message.content:
+            #download video
+            yt = pytube.YouTube(message.content)
+            #download
+            video = yt.streams.filter().first()
+            #user id folder
+            video.download(filename=yt.video_id+".mp4",output_path="yt/"+str(message.author.id))
+            #send video as attachment
+            await message.channel.send(file=discord.File("yt/"+str(message.author.id)+"/"+yt.video_id+".mp4"))
+            #remove video
+            os.remove("yt/"+str(message.author.id)+"/"+yt.video_id+".mp4")
+        return
+    msgLowercase = message.content.lower()
+    msgLowercaseNoPolish = msgLowercase.replace("ą","a").replace("ć","c").replace("ę","e").replace("ł","l").replace("ń","n").replace("ó","o").replace("ś","s").replace("ż","z").replace("ź","z")
+    guild = message.guild
+    msg = message.content
+    sender = message.author
+    if (msg == "!sync" and message.author.id == env.OWNER_ID):
+        await tree.sync()
+        await message.channel.send("Zsynchronizowano drzewo!")
+    if (msg == "!queue" and message.author.id == env.OWNER_ID):
+        await message.channel.send(queue)
+    if message.channel.id == env.MEMES_CHANNEL:
+        if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
+            await message.add_reaction("\U0001F44D")
+            await message.add_reaction("\U0001F44E")
+    if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
+        await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
 
 bot.run(env.TOKEN)

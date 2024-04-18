@@ -8,6 +8,9 @@ TOKEN = "token"
 #IDs of channels
 COUNTING_CHANNEL = 0
 MEMES_CHANNEL = 0
+MINECRAFT_STATUS_CHANNEL = 0
 #ID of discord server
 GUILD_ID = 0
+#Owner of the bot
+OWNER_ID = 0
 ```
