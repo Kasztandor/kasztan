@@ -93,12 +93,10 @@ async def afterPlayAsync():
     global queue
     global nowPlaying
     if (len(queue)):
-        print("Następny song")
         if ((nowPlaying not in queue) and os.path.isfile("yt/"+nowPlaying+".mp3")):
             os.remove("yt/"+nowPlaying)
         playSong(queue.pop(0))
     else:
-        print("Uciekam")
         nowPlaying = ""
         queue = []
         if (len(bot.voice_clients)):
@@ -109,7 +107,6 @@ def afterPlay(err):
 
 def playSong(vid_id):
     global nowPlaying
-    print("playSong()")
     nowPlaying = vid_id
     source = FFmpegPCMAudio("yt/"+vid_id+".mp3")
     bot.voice_clients[0].play(source, after=afterPlay)
@@ -211,6 +208,8 @@ async def self(interaction: discord.Interaction):
         await interaction.response.send_message("Opuściłem kanał głosowy!")
 '''
 
+#kalkulator na czacie
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -244,6 +243,18 @@ async def on_message(message):
         else:
             await message.channel.send("Funkcje bota poprzez DM zawierają:```► mp3: [link/fraza] ◄ pobiera i wysyła plik mp3 z youtube\n► mp4: [link/fraza] ◄ pobiera i wysyła plik mp4 z youtube```\nNa przykład:```mp3: https://www.youtube.com/watch?v=dQw4w9WgXcQ```\nWszystkie inne komendy działają tylko na serwerze!")
         return
+    requiredEquationCharacters = "+-*/"
+    allowedEquationCharacters = "0123456789 ()"
+
+    def calculate(x):
+        try:
+            return eval(x)
+        except:
+            return "Invalid equation"
+
+    if all(char in allowedEquationCharacters or char in requiredEquationCharacters for char in message.content):
+        await message.channel.send(calculate(message.content), reference=message)
+
     msgLowercase = message.content.lower()
     msgLowercaseNoPolish = msgLowercase.replace("ą","a").replace("ć","c").replace("ę","e").replace("ł","l").replace("ń","n").replace("ó","o").replace("ś","s").replace("ż","z").replace("ź","z")
     guild = message.guild
@@ -252,8 +263,6 @@ async def on_message(message):
     if (msg == "!sync" and message.author.id == env.OWNER_ID):
         await tree.sync()
         await message.channel.send("Zsynchronizowano drzewo!")
-    if (msg == "!queue" and message.author.id == env.OWNER_ID):
-        await message.channel.send(queue)
     if message.channel.id == env.MEMES_CHANNEL:
         if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
             await message.add_reaction("\U0001F44D")
