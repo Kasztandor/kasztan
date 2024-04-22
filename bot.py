@@ -208,8 +208,6 @@ async def self(interaction: discord.Interaction):
         await interaction.response.send_message("Opuściłem kanał głosowy!")
 '''
 
-#kalkulator na czacie
-
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -246,14 +244,20 @@ async def on_message(message):
     requiredEquationCharacters = "+-*/"
     allowedEquationCharacters = "0123456789 ()"
 
-    def calculate(x):
-        try:
-            return eval(x)
-        except:
-            return "Invalid equation"
+    processEquation = True
+    containsRequiredCharacters = False
 
-    if all(char in allowedEquationCharacters or char in requiredEquationCharacters for char in message.content):
-        await message.channel.send(calculate(message.content), reference=message)
+    for index, char in enumerate(message.content.replace(" ", "")):
+        if char in requiredEquationCharacters:
+            if index != 0:
+                containsRequiredCharacters = True
+        elif char not in allowedEquationCharacters:
+            processEquation = False
+            break
+    
+    if processEquation and containsRequiredCharacters:
+        await message.channel.send("```\n"+message.content.replace(" ","")+" = "+str(eval(message.content))+"```", reference=message)
+        return
 
     msgLowercase = message.content.lower()
     msgLowercaseNoPolish = msgLowercase.replace("ą","a").replace("ć","c").replace("ę","e").replace("ł","l").replace("ń","n").replace("ó","o").replace("ś","s").replace("ż","z").replace("ź","z")
