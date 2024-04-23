@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import env
 import discord
 import asyncio
 import mysql.connector as sql
@@ -11,6 +10,43 @@ from discord.ext import commands
 from discord import FFmpegPCMAudio
 from mcstatus import JavaServer
 
+####################################################
+# Checking if env.py exists and creating it if not #
+####################################################
+
+envContent = {"TOKEN":"str", "COUNTING_CHANNEL":"int", "MEMES_CHANNEL":"int", "MINECRAFT_STATUS_CHANNEL":"int", "GUILD_ID":"int", "OWNER_ID":"int", "MINECRAFT_SERVER_IP":"str", "MINECRAFT_SERVER_PORT":"int"}
+restrictedEnvContent = ["TOKEN", "GUILD_ID", "OWNER_ID"]
+
+try:
+    import env
+    doExit = False
+    for key in envContent:
+        if not hasattr(env, key):
+            doExit = True
+            setattr(env, key, None)
+            # append to env.py
+            with open("env.py", "a") as file:
+                if envContent[key] == "str":
+                    file.write(key+" = \"""\"\n")
+                else:
+                    file.write(key+" = 0\n")
+    if doExit:
+        print("Plik env.py został utworzony. Wypełnij go odpowiednimi danymi i uruchom program ponownie.")
+        exit()
+except ImportError:
+    with open("env.py", "w") as file:
+        for key in envContent:
+            if envContent[key] == "str":
+                file.write(key+" = \"""\"\n")
+            else:
+                file.write(key+" = 0\n")
+    print("Plik env.py został utworzony. Wypełnij go odpowiednimi danymi i uruchom program ponownie.")
+    exit()
+
+#####################################################
+# Creating bot class and setting up the environment #
+#####################################################
+
 guild = discord.Object(id=env.GUILD_ID)
 queue = []
 nowPlaying = ""
@@ -21,9 +57,9 @@ class abot(discord.Client):
         self.sycned = False
     async def on_ready(self):
         await self.wait_until_ready()
-        if not self.sycned:
-            await tree.sync(guild=guild)
-            self.synced = True
+        #if not self.sycned:
+            #await tree.sync(guild=guild)
+            #self.synced = True
         mcServer = asyncio.create_task(minecraftServer())
         print("Bot is online")
 
@@ -34,7 +70,7 @@ async def minecraftServer():
     while True:
         channel = bot.get_channel(env.MINECRAFT_STATUS_CHANNEL)
         try:
-            server = JavaServer("kasztandor.pl", 25565)
+            server = JavaServer(env.MINECRAFT_SERVER_IP, env.MINECRAFT_SERVER_PORT)
             messageContent = "**Status serwera:** *online*\n**Ilość graczy:** *"+str(server.status().players.online)+"*"
             await channel.edit(name="『💎』info〘"+str(server.status().players.online)+"〙")
             if len(server.query().players.names):
@@ -49,6 +85,7 @@ async def minecraftServer():
             await messages[0].edit(content=messageContent)
         await asyncio.sleep(30)
 
+'''
 async def initMoney(id):
     mydb = sql.connect(host="localhost", user="root", password="", database='kasztan')
     cursor = mydb.cursor()
@@ -63,6 +100,7 @@ async def initMoney(id):
     cursor.close()
     mydb.close()
     return 1000
+'''
 
 @tree.command(name="ping", description="Bot odpowie ci pong", guild=guild)
 async def self(interaction: discord.Interaction):
@@ -70,8 +108,9 @@ async def self(interaction: discord.Interaction):
 
 @tree.command(name="author", description="Bot poda ci najważniejsze informacje o autorze", guild=guild)
 async def self(interaction: discord.Interaction):
-    await interaction.response.send_message("Autorem bocika jest <@386237687008591895>.\n\nGithub: https://github.com/kasztandor\nFacebook: https://www.facebook.com/kasztandor\nReddit: https://www.reddit.com/user/Kasztandor\nInstagram: https://www.instagram.com/kasztandor_art\nInstagram: https://www.instagram.com/kasztandor_photos", suppress_embeds=True)
+    await interaction.response.send_message("Autorem bocika jest <@386237687008591895>.\n\nGithub: <https://github.com/kasztandor>\nFacebook: <https://www.facebook.com/kasztandor>\nReddit: <https://www.reddit.com/user/Kasztandor>\nInstagram: <https://www.instagram.com/kasztandor_art>\nInstagram: <https://www.instagram.com/kasztandor_photos>", suppress_embeds=True)
 
+'''
 @tree.command(name="money", description="Sprawdź stan konta", guild=guild)
 async def self(interaction: discord.Interaction):
     await interaction.response.send_message(await initMoney(interaction.user.id))
@@ -88,6 +127,7 @@ async def self(interaction: discord.Interaction):
     mydb.close()
     embed.add_field(name="Najbogatsi ludzie:", value=string, inline=False)
     await interaction.response.send_message(embed=embed)
+'''
 
 async def afterPlayAsync():
     global queue
