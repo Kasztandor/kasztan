@@ -135,18 +135,23 @@ async def afterPlayAsync():
     if (len(queue)):
         if ((nowPlaying not in queue) and os.path.isfile("yt/"+nowPlaying+".mp3")):
             os.remove("yt/"+nowPlaying)
-        playSong(queue.pop(0))
+        playSong()
     else:
         nowPlaying = ""
         queue = []
         if (len(bot.voice_clients)):
             await bot.voice_clients[0].disconnect()
 
-def afterPlay(err):
+def afterPlay(err): # afterPlayAsync is not a coroutine, so we need to run it in a separate thread
     asyncio.run_coroutine_threadsafe(afterPlayAsync(), bot.loop)
 
-def playSong(vid_id):
+def playSong(vid_id=None):
     global nowPlaying
+    global queue
+    if (vid_id == None):
+        if len(queue) == 0:
+            return
+        vid_id = queue.pop(0)
     nowPlaying = vid_id
     source = FFmpegPCMAudio("yt/"+vid_id+".mp3")
     bot.voice_clients[0].play(source, after=afterPlay)
@@ -157,11 +162,17 @@ def ytDownload(phrase="", dirr="yt", downType="mp3"):
     except:
         srch = pytube.Search(phrase)
         if len(srch.results) == 0:
-            return {success: False}
+            return {success: False, "reason": "search error"}
         yt = srch.results[0]
     video = yt.streams.filter(only_audio=(downType=="mp3")).first()
-    video.download(filename=yt.video_id+"."+downType,output_path=dirr)
-    return {"success": True, "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
+    if not os.path.isfile(dirr+"/"+yt.video_id+"."+downType):
+        try:
+            video.download(filename=yt.video_id+"."+downType,output_path=dirr)
+            return {"success": True, "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
+        except:
+            return {"success": False, "reason": "download error"}
+    else:
+        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
 
 @tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, fraza:str):
@@ -169,27 +180,27 @@ async def self(interaction: discord.Interaction, fraza:str):
     channel = interaction.user.voice
     if channel is None:
         await interaction.response.send_message("Musisz być na kanale głosowym!")
+    elif len(bot.voice_clients) > 0 and channel != bot.voice_clients[0].channel:
+        await interaction.response.send_message("Musisz być na tym samym kanale co bot!")
     else:
-        srch = pytube.Search(fraza)
-        if len(srch.results) == 0:
-            await interaction.response.send_message("Nie znaleziono takiego utworu!")
+        await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
+        ytb = ytDownload(fraza)
+        #srch = pytube.Search(fraza)
+        if ytb["success"] == False:
+            if ytb["reason"] == "search error":
+                await interaction.edit_original_response("Nie znaleziono takiego utworu!")
+            elif ytb["reason"] == "download error":
+                await interaction.edit_original_response("Nie udało się pobrać filmu!")
+            else:
+                await interaction.edit_original_response("Coś dziwnego, w sumie nie powinieneś tego widzieć lol!")
         else:
-            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
-            try:
-                if (not os.path.isfile("yt/"+srch.results[0].video_id+".mp3")):
-                    yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
-                    video = yt.streams.filter(only_audio=True).first()
-                    video.download(filename=srch.results[0].video_id+".mp3",output_path="yt")
-                if (len(bot.voice_clients) == 0):
-                    await channel.channel.connect()
-                    playSong(srch.results[0].video_id)
-                elif (bot.voice_clients[0].is_playing()):
-                    queue.append(srch.results[0].video_id)
-                else:
-                    playSong(srch.results[0].video_id)
-                await interaction.edit_original_response(content="Wyszukano: **"+fraza+"**.\nDodano do kolejki: **"+srch.results[0].title+"**!")
-            except:
-                await interaction.edit_original_response(content="Głupi youtube nie pozwala mi pobrać tego utworu.")
+            if (len(bot.voice_clients) == 0):
+                await channel.channel.connect()
+            if (nowPlaying == ""):
+                playSong(ytb["vid"])
+            else:
+                queue.append(ytb["vid"])
+            await interaction.edit_original_response(content="Wyszukano: **"+fraza+"**.\nDodano do kolejki: **"++"**!")
 
 @tree.command(name="pause", description="Pauzuje i wznawia odtwarzanie muzyki", guild=guild)
 async def self(interaction: discord.Interaction):
