@@ -157,11 +157,17 @@ def ytDownload(phrase="", dirr="yt", downType="mp3"):
     except:
         srch = pytube.Search(phrase)
         if len(srch.results) == 0:
-            return {success: False}
+            return {success: False, "reason": "search error"}
         yt = srch.results[0]
     video = yt.streams.filter(only_audio=(downType=="mp3")).first()
-    video.download(filename=yt.video_id+"."+downType,output_path=dirr)
-    return {"success": True, "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
+    if not os.path.isfile(dirr+"/"+yt.video_id+"."+downType):
+        try:
+            video.download(filename=yt.video_id+"."+downType,output_path=dirr)
+            return {"success": True, "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
+        except:
+            return {"success": False, "reason": "download error"}
+    else:
+        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
 
 @tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, fraza:str):
@@ -170,14 +176,18 @@ async def self(interaction: discord.Interaction, fraza:str):
     if channel is None:
         await interaction.response.send_message("Musisz być na kanale głosowym!")
     else:
-        srch = pytube.Search(fraza)
-        if len(srch.results) == 0:
-            await interaction.response.send_message("Nie znaleziono takiego utworu!")
+        await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
+        ytb = ytDownload(fraza)
+        #srch = pytube.Search(fraza)
+        if ytb["success"] == False:
+            if ytb["reason"] == "search error":
+                await interaction.edit_original_response("Nie znaleziono takiego utworu!")
+            else:
+                await interaction.edit_original_response("Nie udało się pobrać filmu!")
         else:
-            await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
             try:
-                if (not os.path.isfile("yt/"+srch.results[0].video_id+".mp3")):
-                    yt = pytube.YouTube("https://www.youtube.com/watch?v="+srch.results[0].video_id)
+                if (not os.path.isfile("yt/"+ytb["vid"]+".mp3")):
+                    yt = pytube.YouTube("https://www.youtube.com/watch?v="+ytb["vid"])
                     video = yt.streams.filter(only_audio=True).first()
                     video.download(filename=srch.results[0].video_id+".mp3",output_path="yt")
                 if (len(bot.voice_clients) == 0):
