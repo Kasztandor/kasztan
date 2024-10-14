@@ -131,10 +131,10 @@ async def self(interaction: discord.Interaction):
 
 async def afterPlayAsync():
     global queue
-    global nowPlaying
+    #global nowPlaying
     if (len(queue)):
-        if ((nowPlaying not in queue) and os.path.isfile("yt/"+nowPlaying+".mp3")):
-            os.remove("yt/"+nowPlaying)
+        #if ((nowPlaying not in queue) and os.path.isfile("yt/"+nowPlaying+".mp3")):
+        #    os.remove("yt/"+nowPlaying)
         playSong(queue.pop(0))
     else:
         nowPlaying = ""
@@ -145,10 +145,10 @@ async def afterPlayAsync():
 def afterPlay(err):
     asyncio.run_coroutine_threadsafe(afterPlayAsync(), bot.loop)
 
-def playSong(vid_id):
-    global nowPlaying
-    nowPlaying = vid_id
-    source = FFmpegPCMAudio("yt/"+vid_id+".mp3")
+def playSong(path):
+    #global nowPlaying
+    #nowPlaying = path
+    source = FFmpegPCMAudio(path)
     bot.voice_clients[0].play(source, after=afterPlay)
 
 def ytDownload(phrase="", dirr="yt", downType="mp3"):
@@ -160,15 +160,14 @@ def ytDownload(phrase="", dirr="yt", downType="mp3"):
             return {success: False, "reason": "search error"}
         yt = srch.results[0]
     video = yt.streams.filter(only_audio=(downType=="mp3")).first()
-    print("YT")
     if not os.path.isfile(dirr+"/"+yt.video_id+"."+downType):
         try:
             video.download(filename=yt.video_id+"."+downType,output_path=dirr)
-            return {"success": True, "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id}
+            return {"success": True, "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
         except:
             return {"success": False, "reason": "download error"}
     else:
-        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id}
+        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
 
 @tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, fraza:str):
@@ -179,63 +178,55 @@ async def self(interaction: discord.Interaction, fraza:str):
     else:
         await interaction.response.send_message("Trwa pobieranie wybranego utworu...")
         ytb = ytDownload(fraza)
-        #srch = pytube.Search(fraza)
         if ytb["success"] == False:
             if ytb["reason"] == "search error":
                 await interaction.edit_original_response("Nie znaleziono takiego utworu!")
             else:
                 await interaction.edit_original_response("Nie udało się pobrać filmu!")
         else:
-            try:
-                if (not os.path.isfile("yt/"+ytb["vid"]+".mp3")):
-                    yt = pytube.YouTube("https://www.youtube.com/watch?v="+ytb["vid"])
-                    video = yt.streams.filter(only_audio=True).first()
-                    video.download(filename=srch.results[0].video_id+".mp3",output_path="yt")
-                if (len(bot.voice_clients) == 0):
-                    await channel.channel.connect()
-                    playSong(srch.results[0].video_id)
-                elif (bot.voice_clients[0].is_playing()):
-                    queue.append(srch.results[0].video_id)
-                else:
-                    playSong(srch.results[0].video_id)
-                await interaction.edit_original_response(content="Wyszukano: **"+fraza+"**.\nDodano do kolejki: **"+srch.results[0].title+"**!")
-            except:
-                await interaction.edit_original_response(content="Głupi youtube nie pozwala mi pobrać tego utworu.")
+            if (len(bot.voice_clients) == 0):
+                await channel.channel.connect()
+                playSong(ytb["path"])
+            elif (bot.voice_clients[0].is_playing()):
+                queue.append(ytb["path"])
+            else:
+                playSong(ytb["path"])
+            await interaction.edit_original_response(content="Wyszukano: **"+fraza+"**.\nDodano do kolejki: **"+ytb["title"]+"**!")
 
-@tree.command(name="pause", description="Pauzuje i wznawia odtwarzanie muzyki", guild=guild)
-async def self(interaction: discord.Interaction):
-    if (len(bot.voice_clients) and bot.voice_clients[0].is_playing()):
-        if (bot.voice_clients[0].is_paused()):
-            bot.voice_clients[0].resume()
-            await interaction.response.send_message("Wznowiono odtwarzanie muzyki.")
-        else:
-            bot.voice_clients[0].pause()
-            await interaction.response.send_message("Spauzowano odtwarzanie muzyki.")
-    else:
-        await interaction.response.send_message("Bot nic nie gra przystojniaczku. Nie jestem w stanie zarzucić pauzy JOŁ.")
+#@tree.command(name="pause", description="Pauzuje i wznawia odtwarzanie muzyki", guild=guild)
+#async def self(interaction: discord.Interaction):
+#    if (len(bot.voice_clients) and bot.voice_clients[0].is_playing()):
+#        if (bot.voice_clients[0].is_paused()):
+#            bot.voice_clients[0].resume()
+#            await interaction.response.send_message("Wznowiono odtwarzanie muzyki.")
+#        else:
+#            bot.voice_clients[0].pause()
+#            await interaction.response.send_message("Spauzowano odtwarzanie muzyki.")
+#    else:
+#        await interaction.response.send_message("Bot nic nie gra przystojniaczku. Nie jestem w stanie zarzucić pauzy JOŁ.")
 
-@tree.command(name="queue", description="Sprawdź kolejkę odtwarzania", guild=guild)
-async def self(interaction: discord.Interaction, page:int=1):
-    global queue
-    if (len(queue) == 0):
-        await interaction.response.send_message("Aktualnie nic nie czeka na odtworzenie.")
-    else:
-        prefix = ""
-        if (page < 1):
-            prefix = "Podana strona nie istnieje. Wyświetlam pierwszą dostępną stronę.\n\n"
-            page = 1
-        elif (page > math.ceil(len(queue)/10)):
-            prefix = "Podana strona nie istnieje. Wyświetlam ostatnią dostępną stronę.\n\n"
-            page = math.ceil(len(queue)/10)
-        pg = page-1
-        middle = ""
-        for i in range(10):
-            if (len(queue) == pg*10+i):
-                break
-            srch = pytube.Search(queue[pg*10+i])
-            middle += str(pg*10+i+1)+". **"+srch.results[0].title+"**\n"
-        sufix = "\nWyświetlono stronę: "+str(page)+"/"+str(math.ceil(len(queue)/10))
-        await interaction.response.send_message(prefix+middle+sufix)
+#@tree.command(name="queue", description="Sprawdź kolejkę odtwarzania", guild=guild)
+#async def self(interaction: discord.Interaction, page:int=1):
+#    global queue
+#    if (len(queue) == 0):
+#        await interaction.response.send_message("Aktualnie nic nie czeka na odtworzenie.")
+#    else:
+#        prefix = ""
+#        if (page < 1):
+#            prefix = "Podana strona nie istnieje. Wyświetlam pierwszą dostępną stronę.\n\n"
+#            page = 1
+#        elif (page > math.ceil(len(queue)/10)):
+#            prefix = "Podana strona nie istnieje. Wyświetlam ostatnią dostępną stronę.\n\n"
+#            page = math.ceil(len(queue)/10)
+#        pg = page-1
+#        middle = ""
+#        for i in range(10):
+#            if (len(queue) == pg*10+i):
+#                break
+#            srch = pytube.Search(queue[pg*10+i])
+#            middle += str(pg*10+i+1)+". **"+srch.results[0].title+"**\n"
+#        sufix = "\nWyświetlono stronę: "+str(page)+"/"+str(math.ceil(len(queue)/10))
+#        await interaction.response.send_message(prefix+middle+sufix)
 
 @tree.command(name="skip", description="Pomija aktualnie odtwarzany utwór", guild=guild)
 async def self(interaction: discord.Interaction, count:int=1):
@@ -255,10 +246,10 @@ async def self(interaction: discord.Interaction, count:int=1):
 async def self(interaction: discord.Interaction):
     global queue
     queue = []
-    shutil.rmtree("yt")
-    os.mkdir("yt")
+    #shutil.rmtree("yt")
+    #os.mkdir("yt")
     if (len(bot.voice_clients)):
-        bot.voice_clients[0].disconnect()
+        await bot.voice_clients[0].disconnect()
     await interaction.response.send_message("Zatrzymano odtwarzacz.")
 '''
 @tree.command(name="leave", description="Spraw, aby bot uciekł z kanału głosowego", guild=guild)
