@@ -4,7 +4,7 @@ import asyncio
 import mysql.connector as sql
 import os
 import shutil
-import pytube
+import pytubefix as pytube
 import math
 from discord.ext import commands
 from discord import FFmpegPCMAudio
@@ -160,14 +160,15 @@ def ytDownload(phrase="", dirr="yt", downType="mp3"):
             return {success: False, "reason": "search error"}
         yt = srch.results[0]
     video = yt.streams.filter(only_audio=(downType=="mp3")).first()
+    print("YT")
     if not os.path.isfile(dirr+"/"+yt.video_id+"."+downType):
         try:
             video.download(filename=yt.video_id+"."+downType,output_path=dirr)
-            return {"success": True, "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
+            return {"success": True, "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id}
         except:
             return {"success": False, "reason": "download error"}
     else:
-        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+srch.results[0].video_id, "title": srch.results[0].title, "vid": srch.results[0].video_id}
+        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id}
 
 @tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, fraza:str):
@@ -278,12 +279,15 @@ async def on_message(message):
         msg = message.content.lower()
         afterTrim = message.content[5:]
         if msg.startswith("mp4: ") or msg.startswith("mp3: "):
-            yt = ytDownload(afterTrim, "yt/"+str(message.author.id), msg[:3])
-            if yt["success"]:
-                await message.channel.send("", file=discord.File("yt/"+str(message.author.id)+"/"+yt["vid"]+"."+msg[:3]), reference=message)
-                os.remove("yt/"+str(message.author.id)+"/"+yt["vid"]+"."+msg[:3])
-            else:
-                await message.channel.send("Nie udało się pobrać filmu!", reference=message)
+            #try:
+                yt = ytDownload(afterTrim, "yt/"+str(message.author.id), msg[:3])
+                if yt["success"]:
+                    await message.channel.send("", file=discord.File("yt/"+str(message.author.id)+"/"+yt["vid"]+"."+msg[:3]), reference=message)
+                    os.remove("yt/"+str(message.author.id)+"/"+yt["vid"]+"."+msg[:3])
+                else:
+                    await message.channel.send("Nie udało się pobrać filmu!", reference=message)
+            #except:
+            #    await message.channel.send("No i w dupę strzelił! Znów coś się zepsuło :(   ", reference=message)
         else:
             await message.channel.send("Funkcje bota poprzez DM zawierają:```► mp3: [link/fraza] ◄ pobiera i wysyła plik mp3 z youtube\n► mp4: [link/fraza] ◄ pobiera i wysyła plik mp4 z youtube```\nNa przykład:```mp3: https://www.youtube.com/watch?v=dQw4w9WgXcQ```\nWszystkie inne komendy działają tylko na serwerze!")
         return
