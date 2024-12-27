@@ -308,6 +308,12 @@ async def on_message(message):
     if (msg == "!sync" and message.author.id == env.OWNER_ID):
         await tree.sync()
         await message.channel.send("Zsynchronizowano drzewo!")
+    if msg == "!reset":
+        if message.author.guild_permissions.administrator:
+            await message.channel.send("Bot został zresetowany!")
+            os.system("systemctl --user restart SELF-kasztan.service")
+        else:
+            await message.channel.send("Nie jesteś wystarczająco zasłużony aby używać tej komendy!")
     if message.channel.id == env.MEMES_CHANNEL:
         if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
             await message.add_reaction("\U0001F44D")
