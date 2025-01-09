@@ -1,4 +1,5 @@
 .venv
+library
 env.py
 __pycache__
 yt/*
