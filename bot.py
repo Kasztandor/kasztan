@@ -169,7 +169,7 @@ def ytDownload(phrase="", dirr="yt", downType="mp3"):
     else:
         return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
 
-@tree.command(name="play", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
+@tree.command(name="play", description="Dodaj utwór z biblioteki do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, fraza:str):
     global queue
     channel = interaction.user.voice
@@ -192,6 +192,29 @@ async def self(interaction: discord.Interaction, fraza:str):
             else:
                 playSong(ytb["path"])
             await interaction.edit_original_response(content="Wyszukano: **"+fraza+"**.\nDodano do kolejki: **"+ytb["title"]+"**!")
+
+@tree.command(name="playfromlib", description="Dodaj utwór do kolejki odtwarzania", guild=guild)
+async def self(interaction: discord.Interaction, fraza:str):
+    global queue
+    channel = interaction.user.voice
+    if channel is None:
+        await interaction.response.send_message("Musisz być na kanale głosowym!")
+    else:
+        #if file exist
+        path = os.path.dirname(os.path.abspath(__file__))+"/library/"+fraza+".mp3"
+        print(path)
+        if os.path.isfile(path):
+            if (len(bot.voice_clients) == 0):
+                await channel.channel.connect()
+                playSong(path)
+            elif (bot.voice_clients[0].is_playing()):
+                queue.append(path)
+            else:
+                playSong(path)
+            await interaction.edit_original_response(content="Dodano do kolejki: **"+fraza+"** z biblioteki!")
+        else:
+            await interaction.response.send_message("Nie znaleziono takiego utworu w bibliotece!")
+
 
 #@tree.command(name="pause", description="Pauzuje i wznawia odtwarzanie muzyki", guild=guild)
 #async def self(interaction: discord.Interaction):
@@ -305,8 +328,8 @@ async def on_message(message):
     guild = message.guild
     msg = message.content
     sender = message.author
-    if (msg == "!sync" and message.author.id == env.OWNER_ID):
-        await tree.sync()
+    if msg == "!sync" and message.author.id == env.OWNER_ID:
+        await tree.sync(guild=guild)
         await message.channel.send("Zsynchronizowano drzewo!")
     if msg == "!reset":
         if message.author.guild_permissions.administrator:
