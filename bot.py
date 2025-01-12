@@ -211,7 +211,7 @@ async def self(interaction: discord.Interaction, fraza:str):
                 queue.append(path)
             else:
                 playSong(path)
-            await interaction.edit_original_response(content="Dodano do kolejki: **"+fraza+"** z biblioteki!")
+            await interaction.response.send_message(content="Dodano do kolejki: **"+fraza+"** z biblioteki!")
         else:
             await interaction.response.send_message("Nie znaleziono takiego utworu w bibliotece!")
 
@@ -306,12 +306,12 @@ async def on_message(message):
             await message.channel.send("Funkcje bota poprzez DM zawierają:```► mp3: [link/fraza] ◄ pobiera i wysyła plik mp3 z youtube\n► mp4: [link/fraza] ◄ pobiera i wysyła plik mp4 z youtube```\nNa przykład:```mp3: https://www.youtube.com/watch?v=dQw4w9WgXcQ```\nWszystkie inne komendy działają tylko na serwerze!")
         return
     requiredEquationCharacters = "+-*/"
-    allowedEquationCharacters = "0123456789 ()"
+    allowedEquationCharacters = "0123456789 (),."
 
     processEquation = True
     containsRequiredCharacters = False
 
-    for index, char in enumerate(message.content.replace(" ", "")):
+    for index, char in enumerate(message.content.replace(" ", "").replace(",", ".")):
         if char in requiredEquationCharacters:
             if index != 0:
                 containsRequiredCharacters = True
