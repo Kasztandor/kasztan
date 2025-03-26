@@ -4,50 +4,120 @@ import asyncio
 import mysql.connector as sql
 import os
 import shutil
-import pytubefix as pytube
+#import pytubefix as pytube
 import math
+import sqlite3
+import yt_dlp
 from discord.ext import commands
 from discord import FFmpegPCMAudio
 from mcstatus import JavaServer
 
-####################################################
-# Checking if env.py exists and creating it if not #
-####################################################
+def checkType(value):
+    try:
+        int(value)
+        return "int"
+    except:
+        pass
 
-envContent = {"TOKEN":"str", "COUNTING_CHANNEL":"int", "MEMES_CHANNEL":"int", "MINECRAFT_STATUS_CHANNEL":"int", "GUILD_ID":"int", "OWNER_ID":"int", "MINECRAFT_SERVER_IP":"str", "MINECRAFT_SERVER_PORT":"int"}
-restrictedEnvContent = ["TOKEN", "GUILD_ID", "OWNER_ID"]
+    try:
+        float(value)
+        return "float"
+    except:
+        pass
 
-try:
-    import env
-    doExit = False
-    for key in envContent:
-        if not hasattr(env, key):
-            doExit = True
-            setattr(env, key, None)
-            # append to env.py
-            with open("env.py", "a") as file:
-                if envContent[key] == "str":
-                    file.write(key+" = \"""\"\n")
-                else:
-                    file.write(key+" = 0\n")
-    if doExit:
-        print("Plik env.py został utworzony. Wypełnij go odpowiednimi danymi i uruchom program ponownie.")
-        exit()
-except ImportError:
-    with open("env.py", "w") as file:
-        for key in envContent:
-            if envContent[key] == "str":
-                file.write(key+" = \"""\"\n")
-            else:
-                file.write(key+" = 0\n")
-    print("Plik env.py został utworzony. Wypełnij go odpowiednimi danymi i uruchom program ponownie.")
-    exit()
+    return "str"
+
+##################
+# Database stuff #
+##################
+
+import sqlite3
+
+def checkType(value):
+    # None
+    if value == None:
+        return "None"
+    # Int
+    try:
+        int(value)
+        return "int"
+    except ValueError:
+        pass
+    # Float
+    try:
+        float(value)
+        return "float"
+    except ValueError:
+        pass
+    # String
+    return "str"
+
+def returnType(value):
+    # None
+    if value == None:
+        return "None"
+    # Int
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    # Float
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    # String
+    return value
+
+envContent = {
+    "TOKEN": "str",
+    "COUNTING_CHANNEL": "int",
+    "MEMES_CHANNEL": "int",
+    "MINECRAFT_STATUS_CHANNEL":"int",
+    "GUILD_ID": "int",
+    "OWNER_ID": "int",
+    "MINECRAFT_SERVER_IP": "str",
+    "MINECRAFT_SERVER_PORT": "int"
+}
+
+con = sqlite3.connect("db.db")
+cur = con.cursor()
+
+# Sprawdzenie, czy tabela `variables` istnieje
+res = cur.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name='variables';")
+if res.fetchone()[0] == 0:  # Jeśli tabela nie istnieje, tworzona jest nowa
+    cur.execute("CREATE TABLE variables (name text, value text)")
+    con.commit()
+
+# Sprawdzenie, czy tabela ma wymagane kolumny
+res = cur.execute("SELECT COUNT(*) FROM pragma_table_info('variables') WHERE name IN ('name', 'value');")
+if res.fetchone()[0] != 2:  # Jeśli tabela ma błędną strukturę, usuń i stwórz poprawną
+    cur.execute("DROP TABLE IF EXISTS variables;")
+    cur.execute("CREATE TABLE variables (name text, value text)")
+    con.commit()
+
+# Pobranie istniejących wpisów
+existing_entries = {row[0] for row in cur.execute("SELECT name FROM variables")}
+
+# Dodawanie brakujących wartości
+for key, value in envContent.items():
+    if key not in existing_entries:
+        x = None
+        while checkType(x) != value:
+            if x != None:
+                print("Use correct type for", key)
+            x = input(f"Add missing entry: {key} ({value}): ")
+        cur.execute("INSERT INTO variables (name, value) VALUES (?, ?)", (key, x))
+
+con.commit()
+
+env = {name: returnType(value) for name, value in cur.execute("SELECT name, value FROM variables")}
 
 #####################################################
 # Creating bot class and setting up the environment #
 #####################################################
 
-guild = discord.Object(id=env.GUILD_ID)
+guild = discord.Object(id=env["GUILD_ID"])
 queue = []
 nowPlaying = ""
 
@@ -68,9 +138,9 @@ tree = discord.app_commands.CommandTree(bot)
 
 async def minecraftServer():
     while True:
-        channel = bot.get_channel(env.MINECRAFT_STATUS_CHANNEL)
+        channel = bot.get_channel(env["MINECRAFT_STATUS_CHANNEL"])
         try:
-            server = JavaServer(env.MINECRAFT_SERVER_IP, env.MINECRAFT_SERVER_PORT)
+            server = JavaServer(env["MINECRAFT_SERVER_IP"], env["MINECRAFT_SERVER_PORT"])
             messageContent = "**Status serwera:** *online*\n**Ilość graczy:** *"+str(server.status().players.online)+"*"
             await channel.edit(name="『💎』info〘"+str(server.status().players.online)+"〙")
             if len(server.query().players.names):
@@ -151,23 +221,66 @@ def playSong(path):
     source = FFmpegPCMAudio(path)
     bot.voice_clients[0].play(source, after=afterPlay)
 
+
 def ytDownload(phrase="", dirr="yt", downType="mp3"):
-    try:
-        yt = pytube.YouTube(phrase)
-    except:
-        srch = pytube.Search(phrase)
-        if len(srch.results) == 0:
-            return {success: False, "reason": "search error"}
-        yt = srch.results[0]
-    video = yt.streams.filter(only_audio=(downType=="mp3")).first()
-    if not os.path.isfile(dirr+"/"+yt.video_id+"."+downType):
-        try:
-            video.download(filename=yt.video_id+"."+downType,output_path=dirr)
-            return {"success": True, "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
-        except:
-            return {"success": False, "reason": "download error"}
+    search_url = f"ytsearch:{phrase}"
+
+    if downType == 'mp3':
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': f'{dirr}/%(id)s.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'postprocessor_args': [
+                '-ar', '44100',
+                '-ac', '2',
+            ],
+        }
+    elif downType == 'mp4':
+        ydl_opts = {
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'outtmpl': f'{dirr}/%(id)s.%(ext)s',
+            'merge_output_format': 'mp4',  # Ensures final output is MP4
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',  # Fallback conversion if needed
+            }],
+        }
     else:
-        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
+        print("Nieobsługiwany format")
+        return
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(search_url, download=False)
+        video_info = info['entries'][0]
+        video_id = video_info['id']
+        ydl.download([search_url])
+    
+    return {"success": True, "reason": "already exists", "link": "https://youtu.be/", "title": "", "vid": video_id}
+
+# Przykład użycia
+#download_video(phrase="Rick Astley Never Gonna Give You Up", dirr="yt", downType="mp3")
+
+#def ytDownload(phrase="", dirr="yt", downType="mp3"):
+#    try:
+#        yt = pytube.YouTube(phrase)
+#    except:
+#        srch = pytube.Search(phrase)
+#        if len(srch.results) == 0:
+#            return {success: False, "reason": "search error"}
+#        yt = srch.results[0]
+#    video = yt.streams.filter(only_audio=(downType=="mp3")).first()
+#    if not os.path.isfile(dirr+"/"+yt.video_id+"."+downType):
+#        try:
+#            video.download(filename=yt.video_id+"."+downType,output_path=dirr)
+#            return {"success": True, "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
+#        except:
+#            return {"success": False, "reason": "download error"}
+#    else:
+#        return {"success": True, "reason": "already exists", "link": "https://youtu.be/"+yt.video_id, "title": yt.title, "vid": yt.video_id, "path": dirr+"/"+yt.video_id+"."+downType}
 
 @tree.command(name="play", description="Dodaj utwór z biblioteki do kolejki odtwarzania", guild=guild)
 async def self(interaction: discord.Interaction, fraza:str):
@@ -328,7 +441,7 @@ async def on_message(message):
     guild = message.guild
     msg = message.content
     sender = message.author
-    if msg == "!sync" and message.author.id == env.OWNER_ID:
+    if msg == "!sync" and message.author.id == env["OWNER_ID"]:
         await tree.sync(guild=guild)
         await message.channel.send("Zsynchronizowano drzewo!")
     if msg == "!reset":
@@ -337,11 +450,11 @@ async def on_message(message):
             os.system("systemctl --user restart SELF-kasztan.service")
         else:
             await message.channel.send("Nie jesteś wystarczająco zasłużony aby używać tej komendy!")
-    if message.channel.id == env.MEMES_CHANNEL:
+    if message.channel.id == env["MEMES_CHANNEL"]:
         if len(message.attachments) or message.content.startswith("j:") or "https://" in msg or "http://" in msg:
             await message.add_reaction("\U0001F44D")
             await message.add_reaction("\U0001F44E")
     if bot.user in message.mentions and "przedstaw sie" in msgLowercaseNoPolish:
         await message.channel.send("Siema! Jestem sobie botem napisanym przez Kasztandora i tak sobie tutaj działam i robię co do mnie należy. Pozdrawiam wszystkich i życzę udanego dnia!")
 
-bot.run(env.TOKEN)
+bot.run(env["TOKEN"])

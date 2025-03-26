@@ -3,3 +3,4 @@ library
 env.py
 __pycache__
 yt/*
+db.db
